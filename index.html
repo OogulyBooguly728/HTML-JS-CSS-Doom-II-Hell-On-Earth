@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DOOM II: Hell on Earth</title>
+  <link rel="stylesheet" href="js-dos/js-dos.css" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+    :root {
+      --blood: #b80000;
+      --fire:  #ff4400;
+      --ember: #ff8800;
+      --dark:  #0a0a0a;
+      --text:  #e8e0d0;
+      --dim:   #7a6a5a;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      height: 100%;
+      background: var(--dark);
+      color: var(--text);
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px);
+      pointer-events: none; z-index: 9999;
+    }
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.7) 100%);
+      pointer-events: none; z-index: 9998;
+    }
+
+    #app {
+      display: flex; flex-direction: column;
+      align-items: center; height: 100vh; padding: 10px;
+    }
+
+    header { width: 100%; max-width: 960px; text-align: center; padding: 6px 0 8px; }
+
+    .logo {
+      font-size: clamp(1.8rem, 5vw, 3.5rem);
+      font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--fire);
+      text-shadow: 0 0 8px var(--fire), 0 0 24px var(--blood), 3px 3px 0 #000;
+      animation: flicker 6s infinite;
+    }
+    .logo span { color: var(--ember); }
+    .subtitle { font-size: 0.7rem; letter-spacing: 0.3em; color: var(--dim); margin-top: 2px; text-transform: uppercase; }
+
+    @keyframes flicker {
+      0%,100%{opacity:1} 93%{opacity:.7} 94%{opacity:1} 97%{opacity:.85} 98%{opacity:1}
+    }
+
+    #game-wrapper {
+      position: relative; width: 100%; max-width: 960px;
+      flex: 1; min-height: 0;
+      border: 2px solid #2a0000;
+      box-shadow: 0 0 20px rgba(184,0,0,0.3);
+      background: #000; overflow: hidden;
+    }
+
+    #jsdos { width: 100%; height: 100%; }
+
+    #splash {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #000; z-index: 10; gap: 16px;
+      transition: opacity 0.5s;
+    }
+    #splash.hidden { opacity: 0; pointer-events: none; }
+
+    .skull { font-size: 4rem; animation: pulse 2s infinite; filter: drop-shadow(0 0 10px var(--blood)); }
+    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+
+    .splash-title { font-size: 1.4rem; color: var(--fire); letter-spacing: .2em; text-shadow: 0 0 10px var(--blood); }
+    .splash-sub   { font-size: .75rem; color: var(--dim); letter-spacing: .15em; }
+
+    #wad-section { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .wad-label { font-size: .65rem; color: var(--dim); letter-spacing: .2em; text-transform: uppercase; }
+
+    #wad-drop {
+      border: 2px dashed var(--blood); padding: 16px 32px;
+      cursor: pointer; color: var(--text); font-family: inherit; font-size: .85rem;
+      letter-spacing: .1em; background: rgba(184,0,0,.05);
+      transition: all .2s; text-align: center;
+    }
+    #wad-drop:hover, #wad-drop.over {
+      border-color: var(--fire); background: rgba(255,68,0,.1);
+      box-shadow: 0 0 16px rgba(255,68,0,.25); color: var(--fire);
+    }
+    #wad-input { display: none; }
+    #wad-status { font-size: .72rem; color: var(--ember); min-height: 1.1em; letter-spacing: .08em; }
+
+    .launch-btn {
+      display: none; background: var(--blood); color: var(--text);
+      border: none; padding: 11px 36px; font-family: inherit; font-size: .95rem;
+      letter-spacing: .22em; text-transform: uppercase; cursor: pointer;
+      box-shadow: 0 0 14px rgba(184,0,0,.5); transition: all .15s;
+    }
+    .launch-btn:hover { background: var(--fire); box-shadow: 0 0 26px rgba(255,68,0,.7); transform: translateY(-1px); }
+
+    #prog-wrap { display: none; flex-direction: column; align-items: center; gap: 8px; width: 320px; }
+    #prog-label { font-size: .72rem; color: var(--dim); letter-spacing: .13em; text-align: center; }
+    #prog-outer { width: 100%; height: 9px; border: 1px solid var(--blood); background: #000; overflow: hidden; }
+    #prog-inner { height: 100%; width: 0%; background: linear-gradient(90deg, var(--blood), var(--fire)); box-shadow: 0 0 8px var(--fire); transition: width .25s; }
+
+    #err-box {
+      display: none; border: 1px solid var(--blood);
+      background: rgba(184,0,0,.08); padding: 10px 16px;
+      font-size: .72rem; color: #ff6666;
+      max-width: 440px; text-align: center; line-height: 1.6;
+    }
+
+    #statusbar {
+      width: 100%; max-width: 960px;
+      display: flex; justify-content: space-between;
+      padding: 4px 4px 0; font-size: .6rem; color: var(--dim); letter-spacing: .1em;
+    }
+    .dot { display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--blood); margin-right:4px; animation:blink 1.4s infinite; }
+    .dot.g { background:#00cc44; animation-delay:.3s; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">DOOM<span> II</span></div>
+    <div class="subtitle">Hell on Earth &nbsp;&middot;&nbsp; Browser Edition</div>
+  </header>
+
+  <div id="game-wrapper">
+    <div id="jsdos"></div>
+
+    <div id="splash">
+      <div class="skull">&#128128;</div>
+      <div class="splash-title">HELL ON EARTH</div>
+      <div class="splash-sub">Requires your own DOOM2.WAD</div>
+
+      <div id="wad-section">
+        <div class="wad-label">Load your WAD file</div>
+        <div id="wad-drop">
+          Drop <strong>DOOM2.WAD</strong> here<br/>
+          <small>or click to browse</small>
+        </div>
+        <input type="file" id="wad-input" accept=".wad,.WAD" />
+        <div id="wad-status"></div>
+        <button class="launch-btn" id="launch-btn">&#9654; LAUNCH GAME</button>
+      </div>
+
+      <div id="prog-wrap">
+        <div id="prog-label">INITIALIZING...</div>
+        <div id="prog-outer"><div id="prog-inner"></div></div>
+      </div>
+
+      <div id="err-box"></div>
+    </div>
+  </div>
+
+  <div id="statusbar">
+    <div>
+      <span><span class="dot"></span>ENGINE: JS-DOS v7 / DOSBox WASM</span>
+      &nbsp;&nbsp;
+      <span><span class="dot g"></span>LOCAL SERVER</span>
+    </div>
+    <div>DOOM II &copy; 1994 id Software</div>
+  </div>
+</div>
+
+<script src="js-dos/fflate.min.js"></script>
+<script src="js-dos/js-dos.js"></script>
+<script>
+(function () {
+  var wadFile = null;
+
+  var dropZone  = document.getElementById('wad-drop');
+  var fileInput = document.getElementById('wad-input');
+  var statusEl  = document.getElementById('wad-status');
+  var launchBtn = document.getElementById('launch-btn');
+  var progWrap  = document.getElementById('prog-wrap');
+  var progInner = document.getElementById('prog-inner');
+  var progLabel = document.getElementById('prog-label');
+  var errBox    = document.getElementById('err-box');
+  var splash    = document.getElementById('splash');
+
+  // ── File picker / drag-drop ───────────────────────────────
+  dropZone.addEventListener('click', function () { fileInput.click(); });
+  dropZone.addEventListener('dragover', function (e) { e.preventDefault(); dropZone.classList.add('over'); });
+  dropZone.addEventListener('dragleave', function () { dropZone.classList.remove('over'); });
+  dropZone.addEventListener('drop', function (e) {
+    e.preventDefault(); dropZone.classList.remove('over');
+    handleFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', function () { handleFile(fileInput.files[0]); });
+
+  function handleFile(file) {
+    if (!file) return;
+    if (!file.name.toUpperCase().endsWith('.WAD')) {
+      showError('Please select a valid .WAD file.'); return;
+    }
+    wadFile = file;
+    statusEl.textContent = file.name + '  (' + (file.size / 1048576).toFixed(1) + ' MB)';
+    launchBtn.style.display = 'block';
+    errBox.style.display = 'none';
+  }
+
+  launchBtn.addEventListener('click', function () { if (wadFile) startDoom(wadFile); });
+
+  // ── Helpers ───────────────────────────────────────────────
+  function setProgress(pct, label) {
+    progInner.style.width = Math.min(pct, 100) + '%';
+    if (label) progLabel.textContent = label;
+  }
+
+  function showError(html) {
+    document.getElementById('wad-section').style.display = 'flex';
+    progWrap.style.display = 'none';
+    if (wadFile) launchBtn.style.display = 'block';
+    errBox.innerHTML = '&#9888; ' + html;
+    errBox.style.display = 'block';
+  }
+
+  function readBytes(file) {
+    return new Promise(function (resolve, reject) {
+      var r = new FileReader();
+      r.onload  = function () { resolve(new Uint8Array(r.result)); };
+      r.onerror = function () { reject(new Error('FileReader failed')); };
+      r.readAsArrayBuffer(file);
+    });
+  }
+
+  // ── Main launch ───────────────────────────────────────────
+  async function startDoom(file) {
+    document.getElementById('wad-section').style.display = 'none';
+    progWrap.style.display = 'flex';
+
+    // 1. Read user's WAD
+    setProgress(5, 'READING WAD FILE...');
+    var wadBytes;
+    try {
+      wadBytes = await readBytes(file);
+    } catch (e) {
+      showError('Could not read WAD: ' + e.message); return;
+    }
+
+    // 2. Sanity-check libraries
+    if (typeof window.Dos === 'undefined') {
+      showError('js-dos not loaded. Run <strong>setup.bat</strong> first, then refresh.'); return;
+    }
+    if (typeof window.fflate === 'undefined') {
+      showError('fflate not loaded. Run <strong>setup.bat</strong> first, then refresh.'); return;
+    }
+
+    // 3. Fetch the base doom2.jsdos bundle (contains DOOM2.EXE + dosbox config)
+    setProgress(15, 'LOADING BASE BUNDLE...');
+    var baseBytes;
+    try {
+      var resp = await fetch('js-dos/doom2.jsdos');
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      baseBytes = new Uint8Array(await resp.arrayBuffer());
+    } catch (e) {
+      showError(
+        'Could not load doom2.jsdos: ' + e.message + '<br>' +
+        'Delete <strong>js-dos\\doom2.jsdos</strong> and re-run <strong>setup.bat</strong>.'
+      );
+      return;
+    }
+
+    // 4. Unzip base bundle, replace WAD, re-zip
+    setProgress(30, 'PATCHING WAD INTO BUNDLE...');
+    var patchedBuffer;
+    try {
+      // Decompress the base bundle
+      var baseFiles = await new Promise(function (resolve, reject) {
+        window.fflate.unzip(baseBytes, function (err, data) {
+          if (err) reject(err); else resolve(data);
+        });
+      });
+
+      // Replace any existing WAD with the user's WAD.
+      // The base bundle uses 'DOOM2.WAD' (all caps) on DOSBox.
+      // Remove old WAD entries (case-insensitive) and insert the new one.
+      var patched = {};
+      Object.keys(baseFiles).forEach(function (key) {
+        if (key.toUpperCase() !== 'DOOM2.WAD') {
+          patched[key] = baseFiles[key];
+        }
+      });
+      patched['DOOM2.WAD'] = [wadBytes, { level: 0 }]; // store uncompressed
+
+      patchedBuffer = await new Promise(function (resolve, reject) {
+        window.fflate.zip(patched, function (err, data) {
+          if (err) reject(err); else resolve(data.buffer);
+        });
+      });
+    } catch (e) {
+      showError('Bundle patching failed: ' + e.message); return;
+    }
+
+    // 5. Create blob URL for the patched bundle
+    setProgress(50, 'STARTING DOSBOX ENGINE...');
+    var blob    = new Blob([patchedBuffer], { type: 'application/zip' });
+    var blobUrl = URL.createObjectURL(blob);
+
+    // 6. Set emulators path prefix so wdosbox.wasm is found
+    if (typeof window.emulators !== 'undefined') {
+      window.emulators.pathPrefix = 'js-dos/';
+    }
+
+    // 7. Run!
+    try {
+      var element = document.getElementById('jsdos');
+
+      var ci = await window.Dos(element, {
+        onprogress: function (stage, total, loaded) {
+          if (total > 0) {
+            var p = 50 + Math.round((loaded / total) * 40);
+            setProgress(p, stage || 'LOADING WASM...');
+          }
+        },
+      }).run(blobUrl);
+
+      setProgress(100, 'RIP AND TEAR!');
+      setTimeout(function () { splash.classList.add('hidden'); }, 800);
+
+    } catch (err) {
+      console.error(err);
+      URL.revokeObjectURL(blobUrl);
+      showError(
+        'Engine error: ' + err.message + '<br><br>' +
+        'Make sure <strong>setup.bat</strong> was run and the server is active.'
+      );
+    }
+  }
+
+})();
+</script>
+</body>
+</html>
