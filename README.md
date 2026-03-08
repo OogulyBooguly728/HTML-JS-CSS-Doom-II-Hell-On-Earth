@@ -167,7 +167,7 @@ These are the original vanilla Doom default keyboard controls, exactly as shippe
 
 ## Legal
 
-You must own a legitimate copy of DOOM II to use this launcher. The `doom2.jsdos`
+You must own a legitimate copy of DOOM II to legaly use this launcher. The `doom2.jsdos`
 bundle downloaded by `setup.bat` contains only the game executable — your own
 `DOOM2.WAD` provides all copyrighted game content and never leaves your machine.
 This project does not have ownership or copyright over Doom II and is not endorsed by, affiliated with, or in any way connected id software or Bathesda softworks.
